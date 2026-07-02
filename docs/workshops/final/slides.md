@@ -233,16 +233,29 @@ Peça ao chatbot uma **ação**:
 
 ---
 
-## ARQUITETURA · A foto completa da Final
+## ARQUITETURA · A foto completa — tudo que você construiu
 
-Diagrama: [`final-f5-f6-mcp-flow.drawio`](../../diagrams/final-f5-f6-mcp-flow.drawio)
+```
+IDENTIDADE (F2/F3)          BORDA — NÓ 0                SERVIÇOS
+┌───────────────────┐   ┌───────────────────┐
+│ Cliente → CIAM     │   │   GATEWAY YARP     │──/api/v2/me (JIT)─→ [Azure SQL · users]
+│ (Browser SPA)      │──▶│  guardião único    │                     bcrypt v1 + entra_oid
+│ Admin → workforce  │   │  JWT dual-issuer   │──COMPRA (5 nós)──→ [Entry]→[Service Bus]
+└───────────────────┘   │  X-Entra-OID +     │                    →[Consumer *inline*]→[SQL]
+                         │  X-Gateway-Key     │──VOZ (F5)────────→ [McpServer interno·7 tools]→SQL
+                         │  cache pós-auth ·  │                    proxy /llm →[Gemini] key server-side
+                         │  rate-limit · CORS │──VISÃO (F6)──────→ [FlowEvents]→[SignalR]→ /flow
+                         └───────────────────┘
+─────────────────────────────────────────────────────────────────────────────────
+TRANSVERSAL · Segurança (Blindar): Managed Identity + Key Vault (segredos no cofre, sem chave em claro)
+TRANSVERSAL · Observabilidade: App Insights + Log Analytics (traces por correlationId → a Visão lê o Kusto)
+```
 
-- **F5 (voz):** Browser → Gateway → **McpServer (interno, 7 sentidos)** → SQL · proxy `/llm` → Gemini (key server-side)
-- **Compra (5 nós):** Gateway → Entry → Service Bus → Consumer *(notificação inline)* → SQL
-- **F6 (visão):** **FlowEvents** (Managed Identity → Kusto) → **Azure SignalR** → rota `/flow`
-- **Guardião único:** o gateway injeta `X-Entra-OID` + `X-Gateway-Key` (hardening) e é o **nó 0**
+- **Identidade (F2/F3):** dois emissores — cliente **CIAM**, admin **workforce** — validados pelo mesmo gateway.
+- **Borda (nó 0):** o **Gateway YARP** é o guardião único — tudo passa por ele.
+- **Serviços:** compra async **5 nós** (F1) · voz **McpServer** (F5) · visão **FlowEvents/SignalR** (F6) · unificação **`/api/v2/me`** (3.5).
 
-<small>Zero n8n. Zero PostgreSQL. Retro-compatível com Oitavas/Quartas.</small>
+<small>Um sistema **Azure-native completo**, do zero, retro-compatível — **zero n8n**, **zero PostgreSQL**, segredos **no cofre**. (O draw.io de topologia completa é a Story 4.6, ainda não feita.)</small>
 
 ---
 

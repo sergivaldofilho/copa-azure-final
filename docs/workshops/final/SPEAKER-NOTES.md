@@ -379,14 +379,28 @@
 
 # FECHAMENTO (slides 19–22 · 25 min)
 
-## Slide 19 — "ARQUITETURA · A foto completa da Final" · ≈ Storyboard S10 [~5 min]
+## Slide 19 — "ARQUITETURA · A foto completa — tudo que você construiu" · ≈ Storyboard S10 [~6 min]
 
-**Fala (percorra as três trilhas do diagrama `final-f5-f6-mcp-flow.drawio`):**
-- **F5 (voz):** `Browser → Gateway YARP (guardião · X-Entra-OID · X-Gateway-Key) → McpServer (interno, 7 sentidos) → SQL` · proxy `/llm → Gemini` (chave server-side).
-- **Compra (5 nós):** `Gateway (0) → Function Entry (1) → Service Bus (2) → Function Consumer (3, notificação inline) → SQL (4)`.
-- **F6 (visão):** `FlowEvents (Managed Identity → Kusto por correlationId) → Azure SignalR → rota /flow`.
+> **Este é o slide da JORNADA INTEIRA (é a última aula) — não só a Final. Percorra da esquerda (atores/identidade) para a direita (serviços), depois as duas faixas transversais. Vá por camadas para não poluir.**
 
-**Feche o slide:** "**Zero** n8n. **Zero** PostgreSQL. O gateway é o **nó 0** e o **guardião único**. E tudo isso **retro-compatível** com Oitavas/Quartas — nada quebrou."
+**1. Identidade — de onde vem a request (Quartas F2/F3):** "Dois públicos, dois emissores: o **cliente** entra pelo **Entra External ID (CIAM)**, o **admin** pelo **Entra ID workforce**. O gateway valida os **dois** — JWT **dual-issuer** — com a mesma mecânica."
+
+**2. A borda — o NÓ 0, guardião único:** "**Tudo** passa pelo **Gateway YARP**. Ele valida o token, injeta `X-Entra-OID` (identidade) e `X-Gateway-Key` (prova de origem), faz **cache pós-autenticação**, rate-limit e CORS. Nada alcança um serviço sem passar por aqui."
+
+**3. As quatro trilhas que saem do gateway:**
+- **Identidade unificada (Final 3.5):** `/api/v2/me` (JIT resolve-or-provision) → **Azure SQL `users`** — onde o **bcrypt v1** e o **`entra_oid` CIAM** convivem na mesma linha.
+- **Compra assíncrona — 5 nós (Oitavas F1):** `Function Entry → Service Bus → Function Consumer (notificação inline) → Azure SQL`.
+- **Voz (Final F5):** **McpServer** interno (7 tools read-only) → SQL (`SELECT`); proxy `/llm` → **Gemini** (chave server-side).
+- **Visão (Final F6):** **FlowEvents** (Managed Identity → **Kusto** por `correlationId`) → **Azure SignalR** → rota `/flow`.
+
+**4. As duas faixas transversais (a re-arquitetura da Final, EPIC-004):**
+- **Segurança / Blindar:** **Managed Identity + Key Vault** — os serviços leem os segredos **do cofre** via MI, sem chave em claro; o `X-Gateway-Key` fecha o bypass ao McpServer.
+- **Observabilidade:** **App Insights + Log Analytics** — traces correlacionados por `correlationId`; é **exatamente** o que a trilha da **Visão consome** (o FlowEvents lê o Kusto). Segurança e observabilidade compartilham a disciplina de identidade gerenciada.
+- **Dados:** o **Azure SQL** é compartilhado (users, purchases) — o mesmo banco que a compra grava, a voz lê e a identidade unifica.
+
+**Legenda das fases (marque no diagrama):** F1 = compra (5 nós) · F2/F3 = identidade + gateway · F5 = voz · F6 = visão · Blindar = MI+KV/observabilidade.
+
+**Feche o slide:** "Isto é a foto de um sistema **Azure-native completo** — assíncrono, com gateway guardião, identidade federada, um chatbot que só lê, uma tela que se acende, segredos no cofre e tudo rastreável. Vocês construíram **do zero**, camada por camada, ao longo de todas as fases. **Zero n8n, zero PostgreSQL, segredos no cofre — e retro-compatível**: nada das fases anteriores quebrou." *(O draw.io de topologia completa é a Story 4.6, ainda não feita — por ora, este slide é a foto.)*
 
 > **▶ FLUXO DE ENTREGA (guia · fluxo 100% web, padrão Quartas) [~10 min].** Antes da retrospectiva, conduza o fork: "Agora sim o fork. Lembrem: **o Portal criou os recursos vazios; o Actions só publica código.**"
 > - **Fork NOVO, com TODAS as branches** — na tela de fork, **desmarque** *Copy the `main` branch only*. **Não reusem** o fork das Quartas: **Sync fork só atualiza a `main`, não traz branches novas.**

@@ -231,28 +231,54 @@ SLIDE 9 — CONCEITO-CHAVE · Onde foi o n8n? (simplificar > substituir)
 • Acento teal/roxo. Footer padrão.
 
 ════════════════════════════════════════════════════════════════════════
-SLIDE 10 — ARQUITETURA · A foto completa da Final
+SLIDE 10 — ARQUITETURA · A foto completa (tudo que você construiu)
 ════════════════════════════════════════════════════════════════════════
 • Rótulo: ARQUITETURA
-• Título: A foto completa da Grande Final (pós-ADE-008)
-• DIAGRAMA (caixas + setas, três trilhas partindo do mesmo gateway):
-   [Browser SPA]
-        │
-        ▼
-   [Gateway YARP]  — NÓ 0 · guardião único · X-Entra-OID · X-Gateway-Key
-        ├── F5 VOZ:  → [McpServer] (interno · 7 sentidos) → [Azure SQL] (SELECT)
-        │            → proxy /llm → [Gemini] (chave server-side)
-        ├── COMPRA (5 nós): [Gateway 0] → [Function Entry 1] → [Service Bus 2]
-        │                    → [Function Consumer 3 · notificação INLINE] → [Azure SQL 4]
-        └── F6 VISÃO: [FlowEvents] (Managed Identity → Kusto por correlationId)
-                       → [Azure SignalR] → rota /flow
-• LEGENDA NUMERADA do fluxo (abaixo do diagrama):
-   ① a VOZ — a pergunta vira uma tool call; o McpServer só LÊ (7 sentidos).
-   ② a COMPRA — 5 nós, um correlationId; a notificação é inline no nó 3.
-   ③ a VISÃO — traces correlacionados → SignalR → /flow acende os 5 nós.
-• Linha-resumo (destaque): ZERO n8n, ZERO PostgreSQL. O gateway é o nó 0 e o guardião
-   único. Tudo retro-compatível com Oitavas/Quartas — nada quebrou.
-• Footer padrão.
+• Título: A foto completa — tudo que você construiu (Oitavas → Quartas → Final)
+• IMPORTANTE: este NÃO é só o pedaço da Final — é a JORNADA INTEIRA num quadro só (última
+   aula). É DENSO: use AGRUPAMENTO VISUAL em caixas rotuladas + uma faixa transversal na
+   base, para não poluir. Caixas + setas simples, estilo "COMO FUNCIONA".
+• DIAGRAMA (3 grupos da esquerda p/ direita + faixa transversal embaixo):
+
+   ┌─ CAIXA "IDENTIDADE" (Quartas F2/F3) ─┐   ┌─ CAIXA "BORDA — NÓ 0" ─┐
+   │ Cliente (Browser SPA) → Entra         │   │      GATEWAY YARP        │
+   │   External ID (CIAM)                  │──▶│  guardião único          │
+   │ Admin → Entra ID workforce            │   │  JWT DUAL-ISSUER         │
+   │ (dois emissores)                      │   │  injeta X-Entra-OID +    │
+   └───────────────────────────────────────┘   │  X-Gateway-Key           │
+                                                │  cache pós-auth ·        │
+                                                │  rate-limit · CORS       │
+                                                └───────────┬─────────────┘
+                                                            │ (tudo passa por ele)
+              ┌─ CAIXA "SERVIÇOS" ─────────────────────────▼──────────────────────────┐
+              │ • IDENTIDADE UNIFICADA (Final 3.5): /api/v2/me (JIT resolve-or-provision)│
+              │      → [Azure SQL · users]  (bcrypt v1 + entra_oid CIAM na mesma linha) │
+              │ • COMPRA — 5 NÓS (Oitavas F1): [Function Entry]→[Service Bus]           │
+              │      →[Function Consumer · notificação INLINE]→[Azure SQL]              │
+              │ • VOZ (Final F5): [McpServer interno · 7 tools read-only]→SQL (SELECT); │
+              │      proxy /llm →[Gemini] (chave server-side)                           │
+              │ • VISÃO (Final F6): [FlowEvents](Managed Identity→Kusto por correlationId)│
+              │      →[Azure SignalR]→ rota /flow                                       │
+              └────────────────────────────────────────────────────────────────────────┘
+   ══ FAIXA TRANSVERSAL (Final EPIC-004), atravessa todos os serviços ══
+      🔐 SEGURANÇA (Blindar): Managed Identity + Key Vault — segredos lidos do cofre via
+         MI, sem chave em claro; o X-Gateway-Key fecha o bypass ao McpServer.
+      📈 OBSERVABILIDADE: App Insights + Log Analytics — traces por correlationId
+         (é o que a VISÃO consome via Kusto).
+      🗄 DADOS: Azure SQL compartilhado (users + purchases).
+
+• LEGENDA NUMERADA das fases (marque no diagrama, DNA das Quartas):
+   ① F1 — a COMPRA assíncrona (5 nós, um correlationId, notificação inline no nó 3).
+   ② F2/F3 — IDENTIDADE + gateway (dual-issuer; cliente CIAM, admin workforce).
+   ③ F5 — a VOZ (McpServer só LÊ, 7 tools; Gemini decide a tool).
+   ④ F6 — a VISÃO (traces → SignalR → /flow acende os 5 nós).
+   ⑤ Blindar — segredos no cofre (MI+KV) + observabilidade correlacionada.
+• Linha-resumo (destaque): um sistema Azure-native COMPLETO, construído do ZERO, camada
+   por camada — ZERO n8n, ZERO PostgreSQL, segredos NO COFRE — e retro-compatível
+   (nada das fases anteriores quebrou).
+• Nota (rodapé pequeno): o draw.io de topologia completa é a Story 4.6 (ainda não feita);
+   por ora, este slide é a foto.
+• Acento: teal (F5) + roxo (F6) + vermelho só no realce de segurança. Footer padrão.
 
 ════════════════════════════════════════════════════════════════════════
 SLIDE 11 — ENCERRAMENTO DA JORNADA
@@ -313,7 +339,7 @@ LEMBRETES FINAIS PARA A GERAÇÃO
   | 7 | Tec 4: Azure Container Apps | Tec 4: **Azure SignalR / observabilidade** |
   | 8 | Conceito: "só muda a string da authority" | Conceito: **Identidade unificada — "modernizar sem destruir" (ADITIVO)** — gêmeo do slide de identidade das Quartas |
   | 9 | Conceito: "modernizar sem destruir" | Conceito: **"Onde foi o n8n?" (simplificar > substituir, SUBTRATIVO)** |
-  | 10 | Arquitetura "a foto completa da F2" | Arquitetura "a foto completa da Final" |
+  | 10 | Arquitetura "a foto completa da F2" | Arquitetura "a foto completa — tudo que você construiu" (jornada INTEIRA Oitavas→Quartas→Final, não só a Final) |
   | 11 | Encerramento "você concluiu as Quartas" | Encerramento "você concluiu a Copa do Mundo Azure" |
 
 - **Deck reveal paralelo:** `slides.md` (reveal.js) é a versão navegável e mais granular do mesmo
